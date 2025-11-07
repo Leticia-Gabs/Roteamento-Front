@@ -3,11 +3,14 @@ import { RouteInput } from "@/components/RouteInput";
 import { RouteResults } from "@/components/RouteResults";
 import { Network, Sparkles } from "lucide-react";
 
+// 1. Defina a URL da sua API Flask
+const API_URL = "http://localhost:5000";
+
 interface Route {
   network: string;
-  nextHop: string;
+  nextHop: string; // <-- 'nextHop' (camelCase)
   ad: number;
-  metric: number;
+  metric: number; // <-- 'metric' (camelCase)
   isBest?: boolean;
 }
 
@@ -16,76 +19,34 @@ const Index = () => {
   const [searchedIp, setSearchedIp] = useState<string>("");
   const [routes, setRoutes] = useState<Route[]>([]);
 
-  // Mock data for demonstration - replace with actual API call to Python backend
-  const mockApiCall = async (ip: string): Promise<{ routes: Route[]; bestRoute: Route | null }> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+  // 2. A função mockApiCall foi REMOVIDA
 
-    // Mock routing table
-    const routingTable = [
-      { network: "192.168.1.0/24", nextHop: "10.0.0.1", ad: 1, metric: 10 },
-      { network: "192.168.0.0/16", nextHop: "10.0.0.2", ad: 1, metric: 10 },
-      { network: "192.168.1.70/32", nextHop: "10.0.0.3", ad: 1, metric: 10 },
-      { network: "172.16.0.0/16", nextHop: "10.0.0.4", ad: 110, metric: 20 },
-      { network: "172.16.0.0/16", nextHop: "10.0.0.5", ad: 1, metric: 10 },
-      { network: "0.0.0.0/0", nextHop: "200.1.1.1", ad: 1, metric: 0 },
-    ];
-
-    // Simple mock logic to find matching routes
-    const matchingRoutes = routingTable.filter(route => {
-      // This is simplified - in real implementation, use ipaddress library logic
-      if (route.network === "0.0.0.0/0") return true;
-      
-      const [network] = route.network.split("/");
-      const networkParts = network.split(".");
-      const ipParts = ip.split(".");
-      
-      // Check if first octets match
-      return networkParts[0] === ipParts[0] && 
-             (networkParts[1] === ipParts[1] || route.network.includes("/8"));
-    });
-
-    if (matchingRoutes.length === 0) {
-      return { routes: [], bestRoute: null };
-    }
-
-    // Sort by prefix length (desc), then AD (asc), then metric (asc)
-    const sorted = [...matchingRoutes].sort((a, b) => {
-      const prefixA = parseInt(a.network.split("/")[1]);
-      const prefixB = parseInt(b.network.split("/")[1]);
-      
-      if (prefixA !== prefixB) return prefixB - prefixA;
-      if (a.ad !== b.ad) return a.ad - b.ad;
-      return a.metric - b.metric;
-    });
-
-    const bestRoute = { ...sorted[0], isBest: true };
-    const allRoutes = matchingRoutes.map(r => 
-      r.network === bestRoute.network && 
-      r.nextHop === bestRoute.nextHop && 
-      r.ad === bestRoute.ad && 
-      r.metric === bestRoute.metric
-        ? bestRoute 
-        : r
-    );
-
-    return { routes: allRoutes, bestRoute };
-  };
-
+  // 3. Atualize a função handleSearch
   const handleSearch = async (ip: string) => {
     setIsLoading(true);
     setSearchedIp(ip);
     
     try {
-      // TODO: Replace with actual API call to Python backend
-      // const response = await fetch(`/api/route?ip=${ip}`);
-      // const data = await response.json();
+      // --- ESTA É A CHAMADA REAL ---
+      const response = await fetch(`${API_URL}/api/simular`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ip_destino: ip })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.erro || "Falha ao buscar dados da API");
+      }
       
-      const data = await mockApiCall(ip);
-      setRoutes(data.routes);
+      const data: { routes: Route[] } = await response.json();
+      setRoutes(data.routes); // A API agora retorna a lista 'routes'
+
     } catch (error) {
       console.error("Error fetching routes:", error);
-      setRoutes([]);
+      setRoutes([]); // Limpa as rotas em caso de erro
     } finally {
       setIsLoading(false);
     }
